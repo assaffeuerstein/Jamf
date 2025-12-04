@@ -1,0 +1,29 @@
+---
+# DHCPD Role - Default Variables
+
+# Package name (varies by distribution)
+dhcpd_package_name: "isc-dhcp-server"
+
+# Service name
+dhcpd_service_name: "isc-dhcp-server"
+
+# Configuration file path
+dhcpd_config_path: "/etc/dhcp/dhcpd.conf"
+
+# Backup directory
+dhcpd_backup_dir: "/var/backups/dhcpd"
+
+# Domain for DHCP clients
+dhcpd_domain: "macfarm.example.com"
+
+# DNS servers to provide to clients
+dhcpd_dns_servers:
+  - "8.8.8.8"
+  - "8.8.4.4"
+
+# Default lease time (seconds)
+dhcpd_default_lease_time: 600
+
+# Maximum lease time (seconds)
+dhcpd_max_lease_time: 7200
+

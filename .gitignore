@@ -1,0 +1,121 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+.settings/
+
+# Testing
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+
+# Ansible
+*.retry
+ansible/host_vars/*.yml
+!ansible/host_vars/.gitkeep
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+*_secret*
+*_token*
+vault_pass*
+ansible_vault_pass*
+
+# DHCP configuration (contains real data)
+ansible/roles/dhcpd/files/dhcpd.conf
+!ansible/roles/dhcpd/files/dhcpd.conf.example
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.bak
+*.backup
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Flask session files
+flask_sessions/
+
+# Upload directories
+uploads/
+
+# CSV files with real data
+*.csv
+!examples/*.csv
+
+# Inventory files with real data
+ansible/hosts*.ini
+!ansible/hosts.example.ini
+!examples/inventory.ini
+
+# Jenkins workspace
+.jenkins/
+
+# Nautobot/IPAM exports
+*.json.backup
+
+# SSH keys
+id_rsa*
+*.pub
+!*.pub.example
+

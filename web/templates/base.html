@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/apple-style.css') }}">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-brand">
+            <a href="{{ url_for('index') }}">
+                <span class="apple-icon">🍎</span>
+                {{ app_name }}
+            </a>
+        </div>
+        <div class="nav-links">
+            <a href="{{ url_for('index') }}" class="nav-link {% if request.endpoint == 'index' %}active{% endif %}">Dashboard</a>
+            <a href="{{ url_for('add_mac') }}" class="nav-link {% if request.endpoint == 'add_mac' %}active{% endif %}">Add Mac</a>
+            <a href="{{ url_for('remove_mac') }}" class="nav-link {% if request.endpoint == 'remove_mac' %}active{% endif %}">Remove Mac</a>
+            <a href="{{ url_for('configure') }}" class="nav-link {% if request.endpoint == 'configure' %}active{% endif %}">Configure</a>
+            <a href="{{ url_for('install_xcode') }}" class="nav-link {% if request.endpoint == 'install_xcode' %}active{% endif %}">Xcode CLI</a>
+        </div>
+        <div class="nav-user">
+            {% if user %}
+                <span class="user-name">{{ user.get('name', 'User') }}</span>
+                <a href="{{ url_for('logout') }}" class="btn btn-small">Logout</a>
+            {% elif azure_ad_enabled %}
+                <a href="{{ url_for('login') }}" class="btn btn-small btn-primary">Login</a>
+            {% endif %}
+        </div>
+    </nav>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {{ message }}
+                            <button class="alert-close" onclick="this.parentElement.remove()">×</button>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="footer">
+        <p>{{ app_name }} v{{ app_version }} &copy; {{ current_year }}</p>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>
+

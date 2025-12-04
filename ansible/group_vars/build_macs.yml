@@ -1,0 +1,27 @@
+---
+# Build Macs Group Variables
+#
+# Variables specific to build/CI Mac machines
+
+# Install Xcode CLI tools
+install_xcode: true
+
+# Additional Homebrew packages for builds
+homebrew_packages:
+  - git
+  - jq
+  - wget
+  - htop
+  - tree
+  - cocoapods
+  - fastlane
+  - carthage
+  - xcbeautify
+
+# Enable LLDP for network discovery
+install_lldpd: true
+
+# System optimizations for build machines
+disable_spotlight: true
+disable_app_nap: true
+

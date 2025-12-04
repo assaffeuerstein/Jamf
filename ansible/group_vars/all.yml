@@ -1,0 +1,52 @@
+---
+# Global Variables for All Hosts
+#
+# These variables are applied to all hosts in the inventory.
+# Override these in group_vars/<group>.yml or host_vars/<host>.yml
+
+# SSH Configuration
+ansible_user: buildadmin
+ansible_become: yes
+ansible_become_method: sudo
+# ansible_ssh_private_key_file: ~/.ssh/id_rsa_macfarm
+
+# Network Configuration
+network_gateway: "10.0.0.1"
+network_netmask: "255.255.255.0"
+dns_primary: "8.8.8.8"
+dns_secondary: "8.8.4.4"
+network_interface: "Ethernet"
+
+# Time Configuration
+timezone: "Etc/UTC"
+ntp_host: "time.apple.com"
+
+# Admin User
+admin_user: "buildadmin"
+admin_user_group: "admin"
+
+# SSH Keys (add your public keys here)
+# role_ssh_keys:
+#   - "ssh-rsa AAAAB3... admin@example.com"
+#   - "ssh-ed25519 AAAAC3... jenkins@example.com"
+role_ssh_keys: []
+
+# Homebrew Packages (installed on all Macs)
+homebrew_packages:
+  - git
+  - jq
+  - wget
+  - htop
+  - tree
+
+# Optional Components
+install_lldpd: false
+install_telegraf: false
+enable_remote_management: false
+
+# Telegraf Configuration (if enabled)
+# telegraf_influxdb_url: "http://influxdb.example.com:8086"
+# telegraf_influxdb_token: "your-token"
+# telegraf_influxdb_org: "your-org"
+# telegraf_influxdb_bucket: "telegraf"
+

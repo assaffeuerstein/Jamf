@@ -1,0 +1,46 @@
+---
+# DHCPD Role - Deploys DHCP server configuration
+#
+# This role manages the ISC DHCP server configuration.
+# It should be used with the dhcpd.conf file in files/.
+#
+# Note: This role is typically applied to DHCP servers, not Mac clients.
+
+- name: Install ISC DHCP server
+  ansible.builtin.package:
+    name: "{{ dhcpd_package_name }}"
+    state: present
+
+- name: Ensure backup directory exists
+  ansible.builtin.file:
+    path: "{{ dhcpd_backup_dir }}"
+    state: directory
+    mode: '0750'
+    owner: root
+    group: root
+
+- name: Backup current configuration
+  ansible.builtin.copy:
+    src: "{{ dhcpd_config_path }}"
+    dest: "{{ dhcpd_backup_dir }}/dhcpd.conf.{{ ansible_date_time.iso8601_basic_short }}"
+    remote_src: true
+    mode: '0640'
+  ignore_errors: true
+
+- name: Deploy DHCP configuration
+  ansible.builtin.copy:
+    src: dhcpd.conf
+    dest: "{{ dhcpd_config_path }}"
+    mode: '0644'
+    owner: root
+    group: root
+    backup: yes
+    validate: "dhcpd -t -cf %s"
+  notify: restart dhcpd
+
+- name: Ensure DHCP service is enabled and running
+  ansible.builtin.service:
+    name: "{{ dhcpd_service_name }}"
+    state: started
+    enabled: yes
+

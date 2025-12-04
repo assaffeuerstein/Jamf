@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Add Mac Hosts - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <header class="page-header">
+        <h1>Add Mac Hosts</h1>
+        <p class="subtitle">Add new Mac machines to your infrastructure</p>
+    </header>
+
+    <div class="form-container">
+        <form method="POST" enctype="multipart/form-data" class="styled-form">
+            <div class="form-group">
+                <label for="csv_file">CSV File</label>
+                <input type="file" id="csv_file" name="csv_file" accept=".csv,.txt" required>
+                <p class="help-text">Upload a CSV file with columns: hostname, mac, ip</p>
+            </div>
+
+            <div class="form-group">
+                <label for="domain">Domain</label>
+                <input type="text" id="domain" name="domain" value="{{ default_domain }}" placeholder="macfarm.example.com">
+                <p class="help-text">Domain suffix for hostnames (e.g., macfarm.example.com)</p>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" name="dry_run" checked>
+                    <span>Dry Run Mode</span>
+                </label>
+                <p class="help-text">Preview changes without applying them. Uncheck to execute.</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large">
+                    <span class="btn-icon">🚀</span>
+                    Trigger Add Job
+                </button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <div class="form-info">
+            <h3>What happens when you add hosts?</h3>
+            <ol>
+                <li><strong>DNS Update</strong> - Creates A records in PowerDNS</li>
+                <li><strong>DHCP Update</strong> - Adds reservations to dhcpd.conf</li>
+                <li><strong>DHCP Deploy</strong> - Deploys configuration via Ansible</li>
+                <li><strong>Host Vars</strong> - Generates Ansible host_vars files</li>
+                <li><strong>Git Commit</strong> - Commits changes to repository</li>
+            </ol>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

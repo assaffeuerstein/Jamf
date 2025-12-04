@@ -1,0 +1,31 @@
+---
+# Sudo Role - Configures sudo access
+#
+# This role ensures the admin user has proper sudo privileges.
+#
+# Variables:
+#   sudo_user: User to grant sudo access (default: buildadmin)
+#   sudo_nopasswd: Allow passwordless sudo (default: true)
+
+- name: Ensure sudoers.d directory exists
+  ansible.builtin.file:
+    path: /etc/sudoers.d
+    state: directory
+    mode: '0750'
+    owner: root
+    group: wheel
+
+- name: Configure sudo for admin user
+  ansible.builtin.template:
+    src: sudoers_user.j2
+    dest: "/etc/sudoers.d/{{ sudo_user | default('buildadmin') }}"
+    mode: '0440'
+    owner: root
+    group: wheel
+    validate: 'visudo -cf %s'
+  when: sudo_nopasswd | default(true)
+
+- name: Verify sudo configuration
+  ansible.builtin.command: "visudo -c"
+  changed_when: false
+

@@ -1,0 +1,8 @@
+---
+# LLDPD Role - Default Variables
+
+# Interfaces to enable LLDP on
+# Default: all Ethernet interfaces (en*)
+lldpd_interfaces:
+  - "en*"
+

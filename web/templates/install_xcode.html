@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Install Xcode CLI - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <header class="page-header">
+        <h1>Install Xcode CLI Tools</h1>
+        <p class="subtitle">Install Xcode Command Line Tools on Mac machines</p>
+    </header>
+
+    <div class="form-container">
+        <form method="POST" class="styled-form">
+            <div class="form-group">
+                <label for="target">Target</label>
+                <input type="text" id="target" name="target" placeholder="build-mac-01 or build_macs or all" required>
+                <p class="help-text">Ansible host pattern: hostname, group name, or "all"</p>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" name="force">
+                    <span>Force Reinstall</span>
+                </label>
+                <p class="help-text">Reinstall even if Xcode CLI tools are already present</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large">
+                    <span class="btn-icon">🔧</span>
+                    Install Xcode CLI
+                </button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <div class="form-info">
+            <h3>About Xcode CLI Tools</h3>
+            <p>Xcode Command Line Tools include:</p>
+            <ul>
+                <li>Git</li>
+                <li>Clang/LLVM compiler</li>
+                <li>Make and other build tools</li>
+                <li>Swift compiler</li>
+                <li>Developer headers</li>
+            </ul>
+            <p class="text-muted">These tools are required for most iOS/macOS development and build tasks.</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

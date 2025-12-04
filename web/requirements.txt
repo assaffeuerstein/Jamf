@@ -1,0 +1,27 @@
+# Flask Web Application Requirements
+#
+# Install: pip install -r requirements.txt
+
+# Web Framework
+Flask>=2.3.0,<3.0.0
+Werkzeug>=2.3.0,<3.0.0
+
+# Authentication (Azure AD / MSAL)
+msal>=1.24.0,<2.0.0
+
+# Session Management
+Flask-Session>=0.5.0,<1.0.0
+
+# HTTP Client
+requests>=2.31.0,<3.0.0
+
+# WSGI Server (production)
+gunicorn>=21.0.0,<22.0.0
+
+# Redis for session storage (optional)
+# redis>=4.6.0,<5.0.0
+# Flask-Redis>=0.4.0,<1.0.0
+
+# Environment management
+python-dotenv>=1.0.0,<2.0.0
+

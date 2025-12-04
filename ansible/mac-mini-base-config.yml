@@ -1,0 +1,251 @@
+---
+# Mac Mini Base Configuration Playbook
+#
+# This playbook applies base configurations to Mac machines including:
+# - Network configuration (static IP, gateway, DNS)
+# - Hostname configuration
+# - Timezone settings
+# - Power settings (always-on, wake on LAN)
+# - SSH and remote management
+# - System packages via Homebrew
+# - Monitoring (optional)
+#
+# Usage:
+#   ansible-playbook -i hosts.ini mac-mini-base-config.yml
+#   ansible-playbook -i hosts.ini mac-mini-base-config.yml --limit "build-mac-*"
+#   ansible-playbook -i hosts.ini mac-mini-base-config.yml --tags "network,hostname"
+
+- name: Mac Mini Base Configuration
+  hosts: all
+  become: true
+  gather_facts: true
+  
+  vars:
+    # Override these via group_vars, host_vars, or extra vars
+    timezone: "Etc/UTC"
+    gateway: "{{ network_gateway | default('10.0.0.1') }}"
+    netmask: "{{ network_netmask | default('255.255.255.0') }}"
+    dns_servers:
+      - "{{ dns_primary | default('8.8.8.8') }}"
+      - "{{ dns_secondary | default('8.8.4.4') }}"
+    ntp_server: "{{ ntp_host | default('time.apple.com') }}"
+    admin_user: "{{ ansible_user | default('buildadmin') }}"
+    admin_group: "{{ admin_user_group | default('admin') }}"
+    
+    # SSH Configuration
+    ssh_user: "{{ admin_user }}"
+    ssh_user_group: "{{ admin_group }}"
+    
+    # Network interface (default is Ethernet)
+    network_interface: "Ethernet"
+    
+    # Homebrew packages to install
+    homebrew_packages:
+      - git
+      - jq
+      - wget
+      - htop
+      - tree
+    
+    # Enable/disable optional components
+    install_lldpd: true
+    install_telegraf: false
+    enable_remote_management: true
+
+  roles:
+    - role: ssh_keys
+      tags: ['ssh', 'security']
+      
+    - role: sudo
+      tags: ['sudo', 'security']
+      when: configure_sudo | default(true)
+      
+    - role: homebrew
+      tags: ['homebrew', 'packages']
+      when: install_homebrew_packages | default(true)
+      
+    - role: lldpd
+      tags: ['lldpd', 'network']
+      when: install_lldpd | default(false)
+      
+    - role: telegraf
+      tags: ['telegraf', 'monitoring']
+      when: install_telegraf | default(false)
+
+  tasks:
+    # Network Configuration
+    - name: Configure static IP
+      tags: ['network', 'ip']
+      block:
+        - name: Set static IP address
+          ansible.builtin.command: >
+            networksetup -setmanual "{{ network_interface }}"
+            {{ static_ip }} {{ netmask }} {{ gateway }}
+          when: static_ip is defined
+          changed_when: true
+          
+        - name: Configure DNS servers
+          ansible.builtin.command: >
+            networksetup -setdnsservers "{{ network_interface }}"
+            {{ dns_servers | join(' ') }}
+          changed_when: true
+      rescue:
+        - name: Log network configuration failure
+          ansible.builtin.debug:
+            msg: "Failed to configure network. Verify interface name: {{ network_interface }}"
+    
+    # Hostname Configuration
+    - name: Configure hostname
+      tags: ['hostname']
+      block:
+        - name: Set ComputerName
+          ansible.builtin.command: "scutil --set ComputerName '{{ my_hostname | default(inventory_hostname) }}'"
+          changed_when: true
+          
+        - name: Set HostName
+          ansible.builtin.command: "scutil --set HostName '{{ my_hostname | default(inventory_hostname) }}'"
+          changed_when: true
+          
+        - name: Set LocalHostName
+          ansible.builtin.command: "scutil --set LocalHostName '{{ my_shortname | default(inventory_hostname.split('.')[0]) }}'"
+          changed_when: true
+      when: my_hostname is defined or inventory_hostname is defined
+    
+    # Timezone Configuration
+    - name: Configure timezone
+      tags: ['timezone']
+      ansible.builtin.command: "systemsetup -settimezone {{ timezone }}"
+      changed_when: true
+      
+    # NTP Configuration
+    - name: Configure NTP
+      tags: ['ntp', 'time']
+      block:
+        - name: Set NTP server
+          ansible.builtin.command: "systemsetup -setnetworktimeserver {{ ntp_server }}"
+          changed_when: true
+          
+        - name: Enable network time
+          ansible.builtin.command: "systemsetup -setusingnetworktime on"
+          changed_when: true
+    
+    # Power Settings
+    - name: Configure power settings
+      tags: ['power']
+      block:
+        - name: Set system to never sleep
+          ansible.builtin.command: "systemsetup -setcomputersleep Never"
+          changed_when: true
+          
+        - name: Set display sleep to 15 minutes
+          ansible.builtin.command: "systemsetup -setdisplaysleep 15"
+          changed_when: true
+          
+        - name: Enable Wake on Network Access
+          ansible.builtin.command: "systemsetup -setwakeonnetworkaccess on"
+          changed_when: true
+          
+        - name: Disable sleep on power button
+          ansible.builtin.command: "systemsetup -setallowpowerbuttontosleepcomputer off"
+          changed_when: true
+          
+        - name: Restart after power failure
+          ansible.builtin.command: "systemsetup -setrestartfreeze on"
+          changed_when: true
+          
+        - name: Restart after freeze
+          ansible.builtin.command: "systemsetup -setrestartpowerfailure on"
+          changed_when: true
+    
+    # SSH Configuration
+    - name: Enable SSH (Remote Login)
+      tags: ['ssh', 'remote']
+      block:
+        - name: Enable SSH via systemsetup
+          ansible.builtin.command: "systemsetup -setremotelogin on"
+          changed_when: true
+          ignore_errors: true
+          
+        - name: Ensure sshd is running
+          ansible.builtin.service:
+            name: com.openssh.sshd
+            state: started
+          ignore_errors: true
+    
+    # Remote Management (ARD)
+    - name: Configure Remote Management
+      tags: ['remote', 'ard']
+      when: enable_remote_management | default(false)
+      block:
+        - name: Enable ARD for admin user
+          ansible.builtin.command: >
+            /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart
+            -activate -configure -access -on
+            -users {{ admin_user }}
+            -privs -all
+            -restart -agent
+          changed_when: true
+          ignore_errors: true
+    
+    # Homebrew Packages
+    - name: Install Homebrew packages
+      tags: ['homebrew', 'packages']
+      become: false
+      community.general.homebrew:
+        name: "{{ item }}"
+        state: present
+      loop: "{{ homebrew_packages }}"
+      when: homebrew_packages is defined and homebrew_packages | length > 0
+      ignore_errors: true
+    
+    # System Optimization
+    - name: System optimization
+      tags: ['optimize']
+      block:
+        - name: Disable Spotlight indexing for /
+          ansible.builtin.command: "mdutil -i off /"
+          changed_when: true
+          ignore_errors: true
+          
+        - name: Disable App Nap globally
+          ansible.builtin.command: >
+            defaults write NSGlobalDomain NSAppSleepDisabled -bool YES
+          changed_when: true
+          ignore_errors: true
+          
+        - name: Disable automatic updates download
+          ansible.builtin.command: >
+            defaults write /Library/Preferences/com.apple.SoftwareUpdate AutomaticDownload -bool false
+          changed_when: true
+          ignore_errors: true
+    
+    # Configure shell profile
+    - name: Configure shell profile
+      tags: ['shell']
+      block:
+        - name: Ensure .zprofile exists
+          ansible.builtin.file:
+            path: "/Users/{{ admin_user }}/.zprofile"
+            state: touch
+            owner: "{{ admin_user }}"
+            group: "{{ admin_group }}"
+            mode: '0644'
+          changed_when: false
+          
+        - name: Add PATH for Homebrew
+          ansible.builtin.lineinfile:
+            path: "/Users/{{ admin_user }}/.zprofile"
+            line: 'eval "$(/opt/homebrew/bin/brew shellenv)"'
+            create: yes
+            owner: "{{ admin_user }}"
+            group: "{{ admin_group }}"
+            mode: '0644'
+          ignore_errors: true
+
+  handlers:
+    - name: Restart network
+      ansible.builtin.command: "networksetup -setnetworkserviceenabled '{{ network_interface }}' off && sleep 2 && networksetup -setnetworkserviceenabled '{{ network_interface }}' on"
+      
+    - name: Restart ARD
+      ansible.builtin.command: "/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -restart -agent"
+

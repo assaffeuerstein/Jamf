@@ -1,0 +1,7 @@
+hostname,serial_number,location
+build-mac-01,C02XXXXX001,Rack A-01
+build-mac-02,C02XXXXX002,Rack A-02
+build-mac-03,C02XXXXX003,Rack A-03
+ci-mac-01,C02XXXXX010,Rack B-01
+qa-mac-01,C02XXXXX020,Rack C-01
+

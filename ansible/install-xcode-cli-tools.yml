@@ -1,0 +1,111 @@
+---
+# Xcode Command Line Tools Installation Playbook
+#
+# This playbook installs Xcode Command Line Tools on Mac machines.
+# It handles various installation methods and verifies the installation.
+#
+# Usage:
+#   ansible-playbook -i hosts.ini install-xcode-cli-tools.yml
+#   ansible-playbook -i hosts.ini install-xcode-cli-tools.yml --limit "build-*"
+
+- name: Install Xcode Command Line Tools
+  hosts: all
+  become: false
+  gather_facts: true
+  
+  vars:
+    # Force reinstall even if already present
+    force_reinstall: false
+    # Timeout for installation (in seconds)
+    install_timeout: 1800
+
+  tasks:
+    - name: Check if Xcode CLI tools are already installed
+      ansible.builtin.command: xcode-select -p
+      register: xcode_check
+      changed_when: false
+      failed_when: false
+      
+    - name: Display current Xcode CLI tools status
+      ansible.builtin.debug:
+        msg: "Xcode CLI tools path: {{ xcode_check.stdout | default('Not installed') }}"
+      
+    - name: Check git availability (indicator of CLI tools)
+      ansible.builtin.command: git --version
+      register: git_check
+      changed_when: false
+      failed_when: false
+      
+    - name: Install Xcode Command Line Tools
+      when: xcode_check.rc != 0 or force_reinstall
+      block:
+        - name: Create placeholder file for CLI tools
+          ansible.builtin.file:
+            path: /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+            state: touch
+            mode: '0644'
+          become: true
+          
+        - name: Find available CLI tools package
+          ansible.builtin.shell: |
+            softwareupdate -l 2>&1 | \
+            grep -B 1 -E 'Command Line Tools' | \
+            awk -F'*' '/^ *\*/ {print $2}' | \
+            sed -e 's/^ *//' | \
+            tail -n 1
+          register: cli_package
+          changed_when: false
+          
+        - name: Display found package
+          ansible.builtin.debug:
+            msg: "Found CLI tools package: {{ cli_package.stdout }}"
+          when: cli_package.stdout != ''
+          
+        - name: Install CLI tools via softwareupdate
+          ansible.builtin.command: "softwareupdate -i '{{ cli_package.stdout }}' --verbose"
+          become: true
+          async: "{{ install_timeout }}"
+          poll: 30
+          when: cli_package.stdout != ''
+          register: install_result
+          
+        - name: Remove placeholder file
+          ansible.builtin.file:
+            path: /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+            state: absent
+          become: true
+          
+        - name: Accept Xcode license
+          ansible.builtin.command: xcodebuild -license accept
+          become: true
+          ignore_errors: true
+          
+    - name: Verify installation
+      ansible.builtin.command: xcode-select -p
+      register: final_check
+      changed_when: false
+      failed_when: final_check.rc != 0
+      
+    - name: Verify git is available
+      ansible.builtin.command: git --version
+      register: git_version
+      changed_when: false
+      
+    - name: Display installation summary
+      ansible.builtin.debug:
+        msg: |
+          Xcode CLI Tools Installation Summary:
+          - Path: {{ final_check.stdout }}
+          - Git: {{ git_version.stdout }}
+          
+    - name: Get Xcode CLI tools version
+      ansible.builtin.shell: |
+        pkgutil --pkg-info=com.apple.pkg.CLTools_Executables 2>/dev/null | \
+        grep version | awk '{print $2}' || echo "Unknown"
+      register: cli_version
+      changed_when: false
+      
+    - name: Display CLI tools version
+      ansible.builtin.debug:
+        msg: "Xcode CLI Tools version: {{ cli_version.stdout }}"
+

@@ -1,0 +1,9 @@
+---
+# Sudo Role - Default Variables
+
+# User to configure sudo access for
+sudo_user: "buildadmin"
+
+# Allow passwordless sudo
+sudo_nopasswd: true
+

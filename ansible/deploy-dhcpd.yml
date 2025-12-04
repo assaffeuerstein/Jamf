@@ -1,0 +1,136 @@
+---
+# DHCP Server Deployment Playbook
+#
+# This playbook deploys dhcpd configuration and manages the DHCP service.
+# It includes syntax validation before applying changes.
+#
+# Usage:
+#   ansible-playbook -i hosts.ini deploy-dhcpd.yml
+#   ansible-playbook -i hosts.ini deploy-dhcpd.yml --check
+#   ansible-playbook -i hosts.ini deploy-dhcpd.yml --diff
+
+- name: Deploy DHCP Configuration
+  hosts: dhcp_servers
+  become: true
+  gather_facts: true
+  
+  vars:
+    # DHCP configuration paths
+    dhcpd_config_src: "roles/dhcpd/files/dhcpd.conf"
+    dhcpd_config_dest: "/etc/dhcp/dhcpd.conf"
+    dhcpd_service: "isc-dhcp-server"
+    
+    # Backup settings
+    backup_enabled: true
+    backup_dir: "/var/backups/dhcpd"
+    backup_retention_days: 30
+    
+    # Validation settings
+    validate_before_deploy: true
+
+  handlers:
+    - name: Restart DHCP service
+      ansible.builtin.service:
+        name: "{{ dhcpd_service }}"
+        state: restarted
+      listen: "restart dhcpd"
+      
+    - name: Reload DHCP service
+      ansible.builtin.service:
+        name: "{{ dhcpd_service }}"
+        state: reloaded
+      listen: "reload dhcpd"
+
+  tasks:
+    - name: Ensure backup directory exists
+      ansible.builtin.file:
+        path: "{{ backup_dir }}"
+        state: directory
+        mode: '0750'
+        owner: root
+        group: root
+      when: backup_enabled
+
+    - name: Backup current configuration
+      ansible.builtin.copy:
+        src: "{{ dhcpd_config_dest }}"
+        dest: "{{ backup_dir }}/dhcpd.conf.{{ ansible_date_time.iso8601_basic_short }}"
+        remote_src: true
+        mode: '0640'
+      when: backup_enabled
+      ignore_errors: true
+
+    - name: Copy new DHCP configuration
+      ansible.builtin.copy:
+        src: "{{ dhcpd_config_src }}"
+        dest: "{{ dhcpd_config_dest }}.new"
+        mode: '0644'
+        owner: root
+        group: root
+        backup: yes
+      register: config_copy
+
+    - name: Validate new configuration
+      ansible.builtin.command: "dhcpd -t -cf {{ dhcpd_config_dest }}.new"
+      register: config_validation
+      changed_when: false
+      when: validate_before_deploy and config_copy.changed
+
+    - name: Display validation result
+      ansible.builtin.debug:
+        msg: "Configuration validation: {{ 'PASSED' if config_validation.rc == 0 else 'FAILED' }}"
+      when: validate_before_deploy and config_copy.changed
+
+    - name: Activate new configuration
+      ansible.builtin.command: "mv {{ dhcpd_config_dest }}.new {{ dhcpd_config_dest }}"
+      when: 
+        - config_copy.changed
+        - not validate_before_deploy or config_validation.rc == 0
+      notify: restart dhcpd
+
+    - name: Clean up failed configuration
+      ansible.builtin.file:
+        path: "{{ dhcpd_config_dest }}.new"
+        state: absent
+      when:
+        - config_copy.changed
+        - validate_before_deploy
+        - config_validation.rc != 0
+
+    - name: Fail if configuration is invalid
+      ansible.builtin.fail:
+        msg: "DHCP configuration validation failed: {{ config_validation.stderr }}"
+      when:
+        - config_copy.changed
+        - validate_before_deploy
+        - config_validation.rc != 0
+
+    - name: Ensure DHCP service is enabled and running
+      ansible.builtin.service:
+        name: "{{ dhcpd_service }}"
+        state: started
+        enabled: yes
+
+    - name: Clean up old backups
+      ansible.builtin.find:
+        paths: "{{ backup_dir }}"
+        patterns: "dhcpd.conf.*"
+        age: "{{ backup_retention_days }}d"
+      register: old_backups
+      when: backup_enabled
+
+    - name: Remove old backup files
+      ansible.builtin.file:
+        path: "{{ item.path }}"
+        state: absent
+      loop: "{{ old_backups.files }}"
+      when: backup_enabled and old_backups.matched > 0
+
+    - name: Display deployment summary
+      ansible.builtin.debug:
+        msg: |
+          DHCP Deployment Summary:
+          - Configuration: {{ 'Updated' if config_copy.changed else 'No changes' }}
+          - Validation: {{ 'Passed' if not validate_before_deploy or config_validation.rc | default(0) == 0 else 'Failed' }}
+          - Service: {{ dhcpd_service }}
+

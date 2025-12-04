@@ -1,0 +1,45 @@
+---
+# LLDPD Role - Installs and configures LLDP daemon
+#
+# LLDP (Link Layer Discovery Protocol) allows network discovery and
+# helps identify which switch port a Mac is connected to.
+#
+# Variables:
+#   lldpd_interfaces: List of interfaces to enable LLDP on
+
+- name: Install lldpd via Homebrew
+  become: false
+  community.general.homebrew:
+    name: lldpd
+    state: present
+
+- name: Create lldpd configuration directory
+  ansible.builtin.file:
+    path: /opt/homebrew/etc
+    state: directory
+    mode: '0755'
+  ignore_errors: true
+
+- name: Configure lldpd
+  ansible.builtin.template:
+    src: lldpd.conf.j2
+    dest: /opt/homebrew/etc/lldpd.conf
+    mode: '0644'
+  notify: restart lldpd
+
+- name: Start lldpd service
+  become: false
+  ansible.builtin.command: brew services start lldpd
+  changed_when: false
+  ignore_errors: true
+
+- name: Verify lldpd is running
+  ansible.builtin.command: pgrep lldpd
+  register: lldpd_process
+  changed_when: false
+  failed_when: false
+
+- name: Display lldpd status
+  ansible.builtin.debug:
+    msg: "LLDPD is {{ 'running' if lldpd_process.rc == 0 else 'not running' }}"
+

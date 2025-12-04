@@ -1,0 +1,64 @@
+---
+# Homebrew Role - Installs and configures Homebrew
+#
+# This role ensures Homebrew is installed and specified packages are present.
+#
+# Variables:
+#   homebrew_user: User to install Homebrew for
+#   homebrew_packages: List of packages to install
+#   homebrew_cask_packages: List of cask (GUI apps) to install
+
+- name: Check if Homebrew is installed
+  ansible.builtin.stat:
+    path: /opt/homebrew/bin/brew
+  register: homebrew_check
+  
+- name: Check Intel Homebrew location
+  ansible.builtin.stat:
+    path: /usr/local/bin/brew
+  register: homebrew_intel_check
+  when: not homebrew_check.stat.exists
+
+- name: Set Homebrew path fact
+  ansible.builtin.set_fact:
+    homebrew_path: "{{ '/opt/homebrew/bin/brew' if homebrew_check.stat.exists else '/usr/local/bin/brew' if homebrew_intel_check.stat.exists | default(false) else '' }}"
+
+- name: Install Homebrew
+  become: false
+  ansible.builtin.shell: |
+    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+  args:
+    creates: "{{ '/opt/homebrew/bin/brew' if ansible_architecture == 'arm64' else '/usr/local/bin/brew' }}"
+  environment:
+    NONINTERACTIVE: "1"
+  when: homebrew_path == ''
+
+- name: Update Homebrew path fact after install
+  ansible.builtin.set_fact:
+    homebrew_path: "{{ '/opt/homebrew/bin/brew' if ansible_architecture == 'arm64' else '/usr/local/bin/brew' }}"
+  when: homebrew_path == ''
+
+- name: Update Homebrew
+  become: false
+  ansible.builtin.command: "{{ homebrew_path }} update"
+  changed_when: false
+  when: homebrew_update | default(false)
+
+- name: Install Homebrew packages
+  become: false
+  community.general.homebrew:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ homebrew_packages | default([]) }}"
+  when: homebrew_packages is defined and homebrew_packages | length > 0
+  ignore_errors: true
+
+- name: Install Homebrew cask packages
+  become: false
+  community.general.homebrew_cask:
+    name: "{{ item }}"
+    state: present
+  loop: "{{ homebrew_cask_packages | default([]) }}"
+  when: homebrew_cask_packages is defined and homebrew_cask_packages | length > 0
+  ignore_errors: true
+

@@ -1,0 +1,7 @@
+# Ansible managed - Sudo configuration for {{ sudo_user | default('buildadmin') }}
+#
+# This file grants sudo privileges to the specified user.
+
+# Allow {{ sudo_user | default('buildadmin') }} to run any command without password
+{{ sudo_user | default('buildadmin') }} ALL=(ALL) NOPASSWD: ALL
+

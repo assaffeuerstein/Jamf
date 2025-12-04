@@ -1,0 +1,8 @@
+---
+# LLDPD Handlers
+
+- name: restart lldpd
+  become: false
+  ansible.builtin.command: brew services restart lldpd
+  ignore_errors: true
+

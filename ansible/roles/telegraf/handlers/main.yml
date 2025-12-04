@@ -1,0 +1,8 @@
+---
+# Telegraf Handlers
+
+- name: restart telegraf
+  become: false
+  ansible.builtin.command: brew services restart telegraf
+  ignore_errors: true
+

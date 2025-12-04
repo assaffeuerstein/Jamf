@@ -1,0 +1,83 @@
+# Telegraf Configuration - Ansible Managed
+#
+# System monitoring agent configuration
+
+[global_tags]
+  hostname = "{{ inventory_hostname | default(ansible_hostname) }}"
+  environment = "{{ telegraf_environment | default('production') }}"
+{% if telegraf_extra_tags is defined %}
+{% for key, value in telegraf_extra_tags.items() %}
+  {{ key }} = "{{ value }}"
+{% endfor %}
+{% endif %}
+
+[agent]
+  interval = "{{ telegraf_interval | default('10s') }}"
+  round_interval = true
+  metric_batch_size = 1000
+  metric_buffer_limit = 10000
+  collection_jitter = "0s"
+  flush_interval = "10s"
+  flush_jitter = "0s"
+  precision = ""
+  hostname = "{{ inventory_hostname | default(ansible_hostname) }}"
+  omit_hostname = false
+
+###############################################################################
+#                            OUTPUT PLUGINS                                   #
+###############################################################################
+
+{% if telegraf_influxdb_url is defined %}
+[[outputs.influxdb_v2]]
+  urls = ["{{ telegraf_influxdb_url }}"]
+  token = "{{ telegraf_influxdb_token | default('') }}"
+  organization = "{{ telegraf_influxdb_org | default('default') }}"
+  bucket = "{{ telegraf_influxdb_bucket | default('telegraf') }}"
+{% endif %}
+
+{% if telegraf_prometheus_enabled | default(false) %}
+[[outputs.prometheus_client]]
+  listen = ":{{ telegraf_prometheus_port | default('9273') }}"
+  metric_version = 2
+{% endif %}
+
+###############################################################################
+#                            INPUT PLUGINS                                    #
+###############################################################################
+
+# Read metrics about cpu usage
+[[inputs.cpu]]
+  percpu = true
+  totalcpu = true
+  collect_cpu_time = false
+  report_active = false
+
+# Read metrics about disk usage
+[[inputs.disk]]
+  ignore_fs = ["tmpfs", "devtmpfs", "devfs", "iso9660", "overlay", "aufs", "squashfs"]
+
+# Read metrics about disk IO
+[[inputs.diskio]]
+
+# Read metrics about memory usage
+[[inputs.mem]]
+
+# Read metrics about network interface usage
+[[inputs.net]]
+
+# Read metrics about system load & uptime
+[[inputs.system]]
+
+# Get the number of processes and group them by status
+[[inputs.processes]]
+
+# Read metrics about swap memory usage
+[[inputs.swap]]
+
+# macOS specific metrics
+[[inputs.exec]]
+  commands = ["/usr/bin/uptime"]
+  name_override = "uptime"
+  data_format = "grok"
+  grok_patterns = ["%{NUMBER:load1:float} %{NUMBER:load5:float} %{NUMBER:load15:float}"]
+

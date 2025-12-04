@@ -1,0 +1,18 @@
+---
+# SSH Keys Role - Default Variables
+#
+# Override these in group_vars, host_vars, or playbook vars
+
+# User to configure SSH keys for
+ssh_user: "buildadmin"
+
+# User's primary group
+ssh_user_group: "admin"
+
+# List of SSH public keys to authorize
+# Example:
+# role_ssh_keys:
+#   - "ssh-rsa AAAAB3... user@example.com"
+#   - "ssh-ed25519 AAAAC3... another@example.com"
+role_ssh_keys: []
+

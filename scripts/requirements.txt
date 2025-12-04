@@ -1,0 +1,9 @@
+# Mac Fleet Automation - Python Dependencies
+
+# HTTP client for API interactions
+requests>=2.31.0
+urllib3>=2.0.0
+
+# Nautobot IPAM integration
+pynautobot>=1.0.0,<2.0.0
+

@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="dashboard">
+    <header class="page-header">
+        <h1>Mac Infrastructure Dashboard</h1>
+        <p class="subtitle">Manage your Mac build farm with ease</p>
+    </header>
+
+    <div class="card-grid">
+        <div class="card">
+            <div class="card-icon">➕</div>
+            <h2>Add Mac Hosts</h2>
+            <p>Add new Mac machines to your infrastructure. Updates DNS, DHCP, and generates Ansible configuration.</p>
+            <a href="{{ url_for('add_mac') }}" class="btn btn-primary">Add Hosts</a>
+        </div>
+
+        <div class="card">
+            <div class="card-icon">➖</div>
+            <h2>Remove Mac Hosts</h2>
+            <p>Remove Mac machines from your infrastructure. Cleans up DNS and DHCP reservations.</p>
+            <a href="{{ url_for('remove_mac') }}" class="btn btn-secondary">Remove Hosts</a>
+        </div>
+
+        <div class="card">
+            <div class="card-icon">⚙️</div>
+            <h2>Configure Hosts</h2>
+            <p>Apply base configuration to Mac machines including network, hostname, and power settings.</p>
+            <a href="{{ url_for('configure') }}" class="btn btn-primary">Configure</a>
+        </div>
+
+        <div class="card">
+            <div class="card-icon">🔧</div>
+            <h2>Install Xcode CLI</h2>
+            <p>Install Xcode Command Line Tools on Mac machines for build capabilities.</p>
+            <a href="{{ url_for('install_xcode') }}" class="btn btn-primary">Install</a>
+        </div>
+    </div>
+
+    <section class="info-section">
+        <h2>Quick Reference</h2>
+        
+        <div class="info-grid">
+            <div class="info-card">
+                <h3>CSV Format</h3>
+                <pre>hostname,mac,ip
+build-mac-01,00:11:22:33:44:01,10.0.0.101
+build-mac-02,00:11:22:33:44:02,10.0.0.102</pre>
+            </div>
+
+            <div class="info-card">
+                <h3>Default Domain</h3>
+                <p><code>{{ default_domain }}</code></p>
+                <p class="text-muted">Hostnames will be appended with this domain if not already fully qualified.</p>
+            </div>
+
+            <div class="info-card">
+                <h3>Workflow</h3>
+                <ol>
+                    <li>Upload CSV with host information</li>
+                    <li>Review with Dry Run mode</li>
+                    <li>Execute to apply changes</li>
+                    <li>Configure hosts with Ansible</li>
+                </ol>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+

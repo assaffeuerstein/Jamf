@@ -1,0 +1,13 @@
+---
+# DHCPD Handlers
+
+- name: restart dhcpd
+  ansible.builtin.service:
+    name: "{{ dhcpd_service_name }}"
+    state: restarted
+
+- name: reload dhcpd
+  ansible.builtin.service:
+    name: "{{ dhcpd_service_name }}"
+    state: reloaded
+

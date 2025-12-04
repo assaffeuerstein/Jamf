@@ -1,0 +1,24 @@
+---
+# Homebrew Role - Default Variables
+
+# User to run Homebrew commands as
+homebrew_user: "buildadmin"
+
+# Update Homebrew before installing packages
+homebrew_update: false
+
+# Homebrew packages to install (CLI tools)
+homebrew_packages:
+  - git
+  - jq
+  - wget
+  - htop
+  - tree
+
+# Homebrew cask packages to install (GUI applications)
+homebrew_cask_packages: []
+# Example:
+#   - visual-studio-code
+#   - iterm2
+#   - slack
+

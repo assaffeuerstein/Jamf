@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}Configure Hosts - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="form-page">
+    <header class="page-header">
+        <h1>Configure Mac Hosts</h1>
+        <p class="subtitle">Apply base configuration using Ansible</p>
+    </header>
+
+    <div class="form-container">
+        <form method="POST" class="styled-form">
+            <div class="form-group">
+                <label for="target">Target</label>
+                <input type="text" id="target" name="target" placeholder="build-mac-01 or build_macs or all" required>
+                <p class="help-text">Ansible host pattern: hostname, group name, or "all"</p>
+            </div>
+
+            <div class="form-group">
+                <label for="tags">Tags</label>
+                <input type="text" id="tags" name="tags" value="all" placeholder="network,hostname,ssh">
+                <p class="help-text">Ansible tags to run (comma-separated) or "all"</p>
+            </div>
+
+            <div class="form-group">
+                <h4>Available Tags</h4>
+                <div class="tag-list">
+                    <span class="tag" onclick="addTag('network')">network</span>
+                    <span class="tag" onclick="addTag('hostname')">hostname</span>
+                    <span class="tag" onclick="addTag('ssh')">ssh</span>
+                    <span class="tag" onclick="addTag('power')">power</span>
+                    <span class="tag" onclick="addTag('homebrew')">homebrew</span>
+                    <span class="tag" onclick="addTag('ntp')">ntp</span>
+                    <span class="tag" onclick="addTag('timezone')">timezone</span>
+                    <span class="tag" onclick="addTag('optimize')">optimize</span>
+                </div>
+            </div>
+
+            <div class="form-group checkbox-group">
+                <label>
+                    <input type="checkbox" name="check_mode" checked>
+                    <span>Check Mode (Dry Run)</span>
+                </label>
+                <p class="help-text">Preview changes without applying them</p>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary btn-large">
+                    <span class="btn-icon">⚙️</span>
+                    Run Configuration
+                </button>
+                <a href="{{ url_for('index') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+
+        <div class="form-info">
+            <h3>Configuration Tasks</h3>
+            <ul>
+                <li><strong>network</strong> - Static IP, DNS servers</li>
+                <li><strong>hostname</strong> - System hostname configuration</li>
+                <li><strong>ssh</strong> - SSH keys and remote login</li>
+                <li><strong>power</strong> - Power settings (wake on LAN, sleep)</li>
+                <li><strong>homebrew</strong> - Homebrew packages</li>
+                <li><strong>ntp</strong> - Network time configuration</li>
+                <li><strong>timezone</strong> - System timezone</li>
+                <li><strong>optimize</strong> - System optimizations</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<script>
+function addTag(tag) {
+    const input = document.getElementById('tags');
+    const currentValue = input.value.trim();
+    
+    if (currentValue === 'all') {
+        input.value = tag;
+    } else if (!currentValue.split(',').map(t => t.trim()).includes(tag)) {
+        input.value = currentValue ? currentValue + ',' + tag : tag;
+    }
+}
+</script>
+{% endblock %}
+

@@ -1,0 +1,26 @@
+# LLDPD Configuration - Ansible Managed
+#
+# Link Layer Discovery Protocol daemon configuration
+
+# Configure the system description
+configure system description "{{ inventory_hostname | default(ansible_hostname) }}"
+
+# Configure the system platform
+configure system platform "macOS {{ ansible_distribution_version | default('') }}"
+
+# Configure interfaces
+{% if lldpd_interfaces is defined %}
+{% for interface in lldpd_interfaces %}
+configure system interface pattern {{ interface }}
+{% endfor %}
+{% else %}
+# Default: enable on Ethernet interface
+configure system interface pattern en*
+{% endif %}
+
+# Pause before sending first LLDP packet (seconds)
+configure lldp tx-delay 2
+
+# LLDP transmission interval (seconds)
+configure lldp tx-interval 30
+
