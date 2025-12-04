@@ -1,0 +1,44 @@
+---
+# install-rosetta.yml
+# Installs Rosetta 2 on Apple Silicon Macs for x86_64 compatibility
+
+- name: Install Rosetta 2
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: Check if running on Apple Silicon
+      debug:
+        msg: "This is an {{ ansible_machine }} machine"
+
+    - name: Skip if not Apple Silicon
+      meta: end_host
+      when: ansible_machine != 'arm64'
+
+    - name: Check if Rosetta 2 is already installed
+      shell: |
+        /usr/bin/pgrep oahd > /dev/null 2>&1
+      ignore_errors: yes
+      register: rosetta_check
+      changed_when: false
+
+    - name: Install Rosetta 2
+      shell: |
+        softwareupdate --install-rosetta --agree-to-license
+      when: rosetta_check.rc != 0
+      register: rosetta_install
+
+    - name: Verify Rosetta 2 installation
+      shell: |
+        /usr/bin/pgrep oahd > /dev/null 2>&1
+      register: rosetta_verify
+      changed_when: false
+      failed_when: rosetta_verify.rc != 0
+
+    - name: Display installation result
+      debug:
+        msg: "Rosetta 2 is {{ 'now installed' if rosetta_check.rc != 0 else 'already installed' }}"
+

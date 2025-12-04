@@ -1,0 +1,25 @@
+---
+# clear-nvram.yml
+# Clears NVRAM and reboots Mac machines
+# Useful for troubleshooting boot issues or resetting firmware settings
+
+- name: Clear NVRAM
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: no
+  become_user: root
+  become: yes
+
+  tasks:
+    - name: Clear NVRAM
+      shell: /usr/sbin/nvram ResetNVRam=1
+      register: nvram_result
+
+    - name: Display NVRAM clear result
+      debug:
+        msg: "NVRAM has been marked for reset on next boot"
+
+    - name: Reboot Mac to apply NVRAM reset
+      command: /sbin/shutdown -r now
+      ignore_errors: yes
+

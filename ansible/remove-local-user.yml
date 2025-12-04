@@ -1,0 +1,72 @@
+---
+# remove-local-user.yml
+# Removes a local user account and home directory from Mac machines
+
+- name: Remove Local User
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  vars:
+    # User to remove (must be specified)
+    user_to_remove: "{{ remove_user | default('') }}"
+    # Whether to securely delete the user (slower but more secure)
+    secure_delete: "{{ secure_removal | default(false) }}"
+
+  tasks:
+    - name: Validate user_to_remove is specified
+      fail:
+        msg: "Variable 'user_to_remove' or 'remove_user' must be specified"
+      when: user_to_remove | length == 0
+
+    - name: Safety check - prevent removing system users
+      fail:
+        msg: "Cannot remove system user '{{ user_to_remove }}'"
+      when: user_to_remove in ['root', 'daemon', 'nobody', '_www', '_mysql']
+
+    - name: Check if user exists
+      command: "dscl . -read /Users/{{ user_to_remove }}"
+      register: user_exists
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Skip if user does not exist
+      debug:
+        msg: "User '{{ user_to_remove }}' does not exist on this system"
+      when: user_exists.rc != 0
+
+    - name: Get user's home directory
+      shell: "dscl . -read /Users/{{ user_to_remove }} NFSHomeDirectory | awk '{print $2}'"
+      register: home_dir
+      when: user_exists.rc == 0
+      changed_when: false
+
+    - name: Remove local user (secure)
+      command: "/usr/sbin/sysadminctl -deleteUser {{ user_to_remove }} -secure"
+      when: user_exists.rc == 0 and secure_delete
+      ignore_errors: yes
+
+    - name: Remove local user (standard)
+      command: "dscl . delete /Users/{{ user_to_remove }}"
+      when: user_exists.rc == 0 and not secure_delete
+      ignore_errors: yes
+
+    - name: Remove home directory
+      file:
+        path: "{{ home_dir.stdout }}"
+        state: absent
+      when: user_exists.rc == 0 and home_dir.stdout is defined and home_dir.stdout | length > 0 and not secure_delete
+      ignore_errors: yes
+
+    - name: Verify user removal
+      command: "dscl . -read /Users/{{ user_to_remove }}"
+      register: verify_removal
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Display result
+      debug:
+        msg: "{{ 'User ' + user_to_remove + ' has been successfully removed' if verify_removal.rc != 0 else 'User removal may have failed' }}"
+

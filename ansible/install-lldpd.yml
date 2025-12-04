@@ -1,0 +1,49 @@
+---
+# install-lldpd.yml
+# Installs and configures LLDPD for network discovery
+
+- name: Install LLDPD
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: yes
+
+  tasks:
+    - name: Install LLDPD via Homebrew
+      homebrew:
+        name: lldpd
+        state: latest
+        update_homebrew: yes
+        upgrade_all: no
+
+    - name: Setup LLDPD to run at startup (launchctl)
+      shell: /bin/launchctl enable gui/501/homebrew.mxcl.lldpd
+      become: yes
+      become_user: root
+      ignore_errors: yes
+
+    - name: Start LLDPD service (Apple Silicon)
+      shell: /opt/homebrew/bin/brew services start lldpd
+      become: yes
+      become_user: root
+      become_flags: "-E"
+      when: ansible_architecture == 'arm64'
+      ignore_errors: yes
+
+    - name: Start LLDPD service (Intel)
+      shell: /usr/local/bin/brew services start lldpd
+      become: yes
+      become_user: root
+      become_flags: "-E"
+      when: ansible_architecture == 'x86_64'
+      ignore_errors: yes
+
+    - name: Verify LLDPD is running
+      shell: pgrep lldpd
+      register: lldpd_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display LLDPD status
+      debug:
+        msg: "LLDPD is {{ 'running (PID: ' + lldpd_status.stdout + ')' if lldpd_status.rc == 0 else 'not running' }}"
+

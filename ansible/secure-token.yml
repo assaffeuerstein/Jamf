@@ -1,0 +1,67 @@
+---
+# secure-token.yml
+# Manages Secure Token for FileVault on Mac machines
+# IMPORTANT: This playbook requires admin credentials - handle securely!
+
+- name: Manage Secure Token
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  vars:
+    # User to grant/check secure token for
+    target_user: "{{ token_user | default('') }}"
+    # Admin user with existing secure token (for granting)
+    token_admin_user: "{{ token_admin | default('') }}"
+    # These should come from Ansible Vault or environment variables
+    # admin_password: "{{ vault_admin_password }}"
+    # target_password: "{{ vault_target_password }}"
+
+  tasks:
+    - name: Validate required variables
+      fail:
+        msg: "Variables 'target_user' (or 'token_user') must be specified"
+      when: target_user | length == 0
+
+    - name: Check if Secure Token is enabled for the target user
+      shell: sysadminctl -secureTokenStatus {{ target_user }} 2>&1
+      register: secure_token_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display current Secure Token status
+      debug:
+        msg: "{{ secure_token_status.stdout }}"
+
+    - name: Check if token is enabled
+      set_fact:
+        token_enabled: "{{ 'ENABLED' in secure_token_status.stdout }}"
+
+    - name: Display token status
+      debug:
+        msg: "Secure Token for {{ target_user }} is {{ 'ENABLED' if token_enabled else 'DISABLED' }}"
+
+    # Note: To grant a secure token, uncomment and configure with proper credentials
+    # Credentials should be stored in Ansible Vault
+    # - name: Grant Secure Token if not enabled
+    #   shell: >
+    #     sysadminctl
+    #     -adminUser {{ token_admin_user }}
+    #     -adminPassword {{ admin_password }}
+    #     -secureTokenOn {{ target_user }}
+    #     -password {{ target_password }}
+    #   when: not token_enabled and token_admin_user | length > 0
+    #   no_log: true  # Hide passwords from logs
+
+    - name: Reminder about granting tokens
+      debug:
+        msg: |
+          To grant a Secure Token, you need:
+          1. An admin user with an existing Secure Token
+          2. The admin user's password
+          3. The target user's password
+          Use Ansible Vault to store credentials securely.
+      when: not token_enabled
+

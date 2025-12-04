@@ -1,0 +1,78 @@
+---
+# query-lldp.yml
+# Queries LLDP information from Mac machines to identify network switch ports
+# Useful for network documentation and troubleshooting
+
+- name: Query LLDP Information
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: yes
+
+  vars:
+    # Directory to save LLDP results
+    output_dir: "./lldp_results"
+
+  tasks:
+    - name: Ensure output directory exists
+      delegate_to: localhost
+      become: no
+      file:
+        path: "{{ output_dir }}"
+        state: directory
+      run_once: true
+
+    - name: Install/update lldpd via Homebrew
+      homebrew:
+        name: lldpd
+        state: latest
+        update_homebrew: yes
+        upgrade_all: no
+      retries: 5
+
+    - name: Restart lldpd service (Apple Silicon)
+      shell: /opt/homebrew/bin/brew services restart lldpd
+      become: yes
+      become_user: root
+      become_flags: "-E"
+      when: ansible_architecture == 'arm64'
+
+    - name: Restart lldpd service (Intel)
+      shell: /usr/local/bin/brew services restart lldpd
+      become: yes
+      become_user: root
+      become_flags: "-E"
+      when: ansible_architecture == 'x86_64'
+
+    - name: Wait for LLDP to collect neighbor information
+      pause:
+        seconds: 5
+
+    - name: Set LLDPCLI path based on architecture
+      set_fact:
+        lldpcli_bin: >-
+          {{ '/usr/local/sbin/lldpcli' if ansible_architecture == 'x86_64' else '/opt/homebrew/sbin/lldpcli' }}
+
+    - name: Check if lldpcli binary exists
+      stat:
+        path: "{{ lldpcli_bin }}"
+      register: lldpcli_exists
+
+    - name: Run LLDPCLI to show neighbors
+      command: "{{ lldpcli_bin }} show neighbors"
+      register: lldp_output
+      when: lldpcli_exists.stat.exists
+      ignore_errors: yes
+
+    - name: Display LLDP neighbors
+      debug:
+        msg: "{{ lldp_output.stdout_lines | default(['No LLDP data available']) }}"
+      when: lldpcli_exists.stat.exists
+
+    - name: Save output to local file
+      delegate_to: localhost
+      become: no
+      copy:
+        content: "{{ lldp_output.stdout | default('No LLDP data') }}"
+        dest: "{{ output_dir }}/{{ ansible_fqdn | default(inventory_hostname) }}.txt"
+      when: lldpcli_exists.stat.exists
+

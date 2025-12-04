@@ -1,0 +1,14 @@
+---
+# configure-sudo.yml
+# Configures sudo access using the sudo role
+
+- name: Configure Sudo
+  hosts: "{{ target_hosts | default('all') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: no
+  become_user: root
+  become: yes
+
+  roles:
+    - sudo
+

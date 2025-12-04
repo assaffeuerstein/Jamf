@@ -1,0 +1,110 @@
+---
+# fix-ard.yml
+# Resets broken Screen Sharing / Remote Management on macOS and re-enables ARD with proper privileges
+
+- name: Fix Screen Sharing / Remote Management on macOS
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: yes
+  become_user: root
+  become: yes
+
+  vars:
+    # User(s) that should have remote control privileges
+    ard_users:
+      - "{{ admin_user | default('automation_user') }}"
+    # Open macOS firewall for ARD/Screen Sharing
+    open_firewall: true
+    # Path shortcuts
+    ard_kickstart: "/System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart"
+    screensharing_plist: "/System/Library/LaunchDaemons/com.apple.screensharing.plist"
+
+  tasks:
+    - name: Ensure ARD kickstart exists
+      stat:
+        path: "{{ ard_kickstart }}"
+      register: ard_ks
+
+    - name: Deactivate and stop ARD (clean state)
+      shell: |
+        "{{ ard_kickstart }}" -deactivate -stop || true
+        "{{ ard_kickstart }}" -uninstall -files || true
+      args:
+        executable: /bin/bash
+      when: ard_ks.stat.exists
+      changed_when: true
+
+    - name: Try unloading Screen Sharing (newer macOS - bootout)
+      shell: |
+        launchctl bootout system "{{ screensharing_plist }}" || true
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Try unloading Screen Sharing (legacy - unload -w)
+      shell: |
+        launchctl unload -w "{{ screensharing_plist }}" 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Reload Screen Sharing (newer macOS - bootstrap + enable)
+      shell: |
+        launchctl bootstrap system "{{ screensharing_plist }}" 2>/dev/null || true
+        launchctl enable system/com.apple.screensharing 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Reload Screen Sharing (legacy - load -w)
+      shell: |
+        launchctl load -w "{{ screensharing_plist }}" 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      changed_when: false
+
+    - name: Activate ARD and grant full privileges to specified users
+      shell: |
+        "{{ ard_kickstart }}" \
+          -activate \
+          -configure -access -on \
+          -users {{ ard_users | join(",") }} \
+          -privs -all \
+          -restart -agent -menu
+      args:
+        executable: /bin/bash
+      when: ard_ks.stat.exists
+      changed_when: true
+
+    - name: Open macOS firewall for ARD/Screen Sharing
+      shell: |
+        /usr/libexec/ApplicationFirewall/socketfilterfw --add /System/Library/CoreServices/RemoteManagement/ARDAgent.app || true
+        /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp /System/Library/CoreServices/RemoteManagement/ARDAgent.app || true
+        /usr/libexec/ApplicationFirewall/socketfilterfw --setallowsigned on || true
+      args:
+        executable: /bin/bash
+      when: open_firewall
+      changed_when: false
+
+    - name: Verify ARD status
+      shell: |
+        "{{ ard_kickstart }}" -status || true
+      args:
+        executable: /bin/bash
+      register: ard_status
+      changed_when: false
+
+    - name: Verify screensharing daemon presence
+      shell: |
+        launchctl print system/com.apple.screensharing 2>/dev/null || true
+      args:
+        executable: /bin/bash
+      register: ss_status
+      changed_when: false
+
+    - name: Show service summaries
+      debug:
+        msg:
+          - "ARD status: {{ ard_status.stdout | default('') }}"
+          - "ScreenSharing status: {{ ss_status.stdout | default('') }}"
+

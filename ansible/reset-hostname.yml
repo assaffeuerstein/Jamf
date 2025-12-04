@@ -1,0 +1,71 @@
+---
+# reset-hostname.yml
+# Resets Mac hostname to a generic/randomized name
+# Useful when deprovisioning or reallocating machines
+
+- name: Reset Mac Hostname
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  vars:
+    # Prefix for the new hostname
+    hostname_prefix: "{{ new_hostname_prefix | default('free-mac') }}"
+    # Whether to run Jamf recon after hostname change
+    run_jamf_recon: "{{ jamf_recon | default(true) }}"
+
+  tasks:
+    - name: Get current hostname
+      command: scutil --get HostName
+      register: current_hostname
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display current hostname
+      debug:
+        msg: "Current hostname: {{ current_hostname.stdout | default('Not set') }}"
+
+    - name: Set a random 4-digit number as a fact
+      set_fact:
+        random_number: "{{ 1000 | random(seed=inventory_hostname) | int + 9000 }}"
+
+    - name: Set a new hostname as a fact
+      set_fact:
+        new_hostname: "{{ hostname_prefix }}-{{ random_number }}"
+
+    - name: Display new hostname
+      debug:
+        msg: "Setting new hostname to: {{ new_hostname }}"
+
+    - name: Set HostName
+      command: 'scutil --set HostName {{ new_hostname }}'
+
+    - name: Set LocalHostName
+      command: 'scutil --set LocalHostName {{ new_hostname }}'
+
+    - name: Set ComputerName
+      command: 'scutil --set ComputerName {{ new_hostname }}'
+
+    - name: Flush DNS cache
+      shell: |
+        killall -HUP mDNSResponder 2>/dev/null || true
+        killall mDNSResponderHelper 2>/dev/null || true
+        dscacheutil -flushcache 2>/dev/null || true
+      ignore_errors: yes
+
+    - name: Verify new hostname
+      command: scutil --get HostName
+      register: verify_hostname
+      changed_when: false
+
+    - name: Display verification
+      debug:
+        msg: "Hostname is now: {{ verify_hostname.stdout }}"
+
+    - name: Run Jamf Recon to update inventory
+      command: /usr/local/bin/jamf recon
+      when: run_jamf_recon
+      ignore_errors: yes
+

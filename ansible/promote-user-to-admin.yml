@@ -1,0 +1,54 @@
+---
+# promote-user-to-admin.yml
+# Promotes a user to admin group on Mac machines
+
+- name: Promote User to Admin
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  vars:
+    # User to promote (must be specified)
+    user_to_promote: "{{ promote_user | default('') }}"
+
+  tasks:
+    - name: Validate user_to_promote is specified
+      fail:
+        msg: "Variable 'user_to_promote' or 'promote_user' must be specified"
+      when: user_to_promote | length == 0
+
+    - name: Check if user exists
+      command: "/usr/bin/dscl . -read /Users/{{ user_to_promote }}"
+      register: user_exists
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Fail if user does not exist
+      fail:
+        msg: "User '{{ user_to_promote }}' does not exist on this system"
+      when: user_exists.rc != 0
+
+    - name: Check if user is already admin
+      command: '/usr/bin/dscl . -read "/groups/admin" GroupMembership'
+      register: admin_members
+      changed_when: false
+
+    - name: Display current admin members
+      debug:
+        msg: "Current admin members: {{ admin_members.stdout }}"
+
+    - name: Promote user to admin group
+      command: '/usr/bin/dscl . -append "/groups/admin" GroupMembership {{ user_to_promote }}'
+      when: user_to_promote not in admin_members.stdout
+
+    - name: Verify promotion
+      command: '/usr/bin/dscl . -read "/groups/admin" GroupMembership'
+      register: new_admin_members
+      changed_when: false
+
+    - name: Display result
+      debug:
+        msg: "{{ 'User ' + user_to_promote + ' is now an admin' if user_to_promote in new_admin_members.stdout else 'Failed to promote user' }}"
+

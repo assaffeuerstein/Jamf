@@ -1,0 +1,48 @@
+---
+# fix-dns.yml
+# Configures DNS servers on Mac machines
+
+- name: Fix DNS Configuration
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  vars:
+    # DNS servers to configure (customize for your environment)
+    dns_servers: "{{ dns_server_list | default(['8.8.8.8', '8.8.4.4']) }}"
+    # Network interface to configure
+    network_interface: "{{ network_iface | default('Ethernet') }}"
+
+  tasks:
+    - name: Get current DNS configuration
+      command: "networksetup -getdnsservers {{ network_interface }}"
+      register: current_dns
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display current DNS servers
+      debug:
+        msg: "Current DNS: {{ current_dns.stdout }}"
+
+    - name: Setup DNS resolver
+      shell: "networksetup -setdnsservers {{ network_interface }} {{ dns_servers | join(' ') }}"
+      register: dns_result
+
+    - name: Flush DNS cache
+      shell: |
+        killall -HUP mDNSResponder 2>/dev/null || true
+        killall mDNSResponderHelper 2>/dev/null || true
+        dscacheutil -flushcache 2>/dev/null || true
+      ignore_errors: yes
+
+    - name: Verify DNS configuration
+      command: "networksetup -getdnsservers {{ network_interface }}"
+      register: new_dns
+      changed_when: false
+
+    - name: Display new DNS servers
+      debug:
+        msg: "New DNS: {{ new_dns.stdout }}"
+

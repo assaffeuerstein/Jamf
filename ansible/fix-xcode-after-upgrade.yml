@@ -1,0 +1,82 @@
+---
+# fix-xcode-after-upgrade.yml
+# Fixes Xcode configuration after macOS or Xcode upgrades
+# Accepts license, installs additional packages, enables developer mode
+
+- name: Fix Xcode After Upgrade
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: yes
+  become_user: root
+  become: yes
+
+  tasks:
+    - name: Check if Xcode is installed
+      stat:
+        path: '/Applications/Xcode.app'
+      register: xcode_app
+
+    - name: Fail if Xcode is not installed
+      fail:
+        msg: "Xcode.app is not installed at /Applications/Xcode.app"
+      when: not xcode_app.stat.exists
+
+    - name: Accept Xcode License
+      command: '/Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -license accept'
+      register: license_result
+      ignore_errors: yes
+
+    - name: Display license acceptance result
+      debug:
+        msg: "{{ license_result.stdout | default('License accepted') }}"
+
+    - name: List packages to be installed
+      find:
+        path: '/Applications/Xcode.app/Contents/Resources/Packages'
+        patterns: '*.pkg'
+      register: xcode_packages
+
+    - name: Display found packages
+      debug:
+        msg: "Found {{ xcode_packages.files | length }} packages to install"
+
+    - name: Install additional Xcode packages
+      command: '/usr/sbin/installer -dumplog -verbose -pkg {{ item.path }} -target /'
+      with_items: '{{ xcode_packages.files }}'
+      register: package_install
+      ignore_errors: yes
+
+    - name: Enable developer mode
+      command: '/usr/sbin/DevToolsSecurity -enable'
+      register: devmode_result
+
+    - name: Display developer mode result
+      debug:
+        msg: "{{ devmode_result.stdout | default('Developer mode enabled') }}"
+
+    - name: Add all users to _developer group
+      command: '/usr/sbin/dseditgroup -o edit -a everyone -t group _developer'
+      ignore_errors: yes
+
+    - name: Set Xcode command line tools path
+      command: 'xcode-select -s /Applications/Xcode.app/Contents/Developer'
+      register: xcode_select_result
+
+    - name: Verify Xcode CLI tools path
+      command: 'xcode-select -p'
+      register: xcode_path
+      changed_when: false
+
+    - name: Display Xcode developer path
+      debug:
+        msg: "Xcode developer path: {{ xcode_path.stdout }}"
+
+    - name: Display completion summary
+      debug:
+        msg:
+          - "Xcode post-upgrade fix completed:"
+          - "- License accepted"
+          - "- {{ xcode_packages.files | length }} packages installed"
+          - "- Developer mode enabled"
+          - "- Developer path: {{ xcode_path.stdout }}"
+

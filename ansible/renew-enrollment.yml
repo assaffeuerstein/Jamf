@@ -1,0 +1,30 @@
+---
+# renew-enrollment.yml
+# Renews MDM enrollment profile on Mac machines
+
+- name: Renew MDM Enrollment
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: Check current enrollment status
+      command: profiles status -type enrollment
+      register: enrollment_status
+      changed_when: false
+      ignore_errors: yes
+
+    - name: Display current enrollment status
+      debug:
+        msg: "{{ enrollment_status.stdout_lines | default(['Unable to get status']) }}"
+
+    - name: Issue enrollment renewal
+      command: profiles renew -type enrollment
+      register: renew_result
+
+    - name: Display renewal result
+      debug:
+        msg: "{{ renew_result.stdout_lines | default(['Enrollment renewal initiated']) }}"
+

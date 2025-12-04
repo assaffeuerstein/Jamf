@@ -1,0 +1,18 @@
+---
+# remote-desktop.yml
+# Enables Apple Remote Desktop (ARD) / Screen Sharing for remote management
+
+- name: Enable Remote Desktop
+  hosts: "{{ target_hosts | default('all') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: no
+  become_user: root
+  become: yes
+
+  tasks:
+    - name: Activate Remote Management Service
+      command: /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -activate -restart -agent -console
+
+    - name: Configure Remote Management for all users
+      command: /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart -configure -allowAccessFor -allUsers -privs -all -restart -agent
+

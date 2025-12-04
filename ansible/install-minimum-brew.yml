@@ -1,0 +1,40 @@
+---
+# install-minimum-brew.yml
+# Installs minimum required Homebrew packages for build machines
+
+- name: Install Minimum Homebrew Packages
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: yes
+
+  vars:
+    # Minimum packages for build infrastructure
+    minimum_packages:
+      - coreutils
+      - lldpd
+      - telegraf
+      - wget
+      - jq
+      - git
+      - curl
+
+  tasks:
+    - name: Determine Homebrew prefix
+      set_fact:
+        homebrew_prefix: "{{ '/opt/homebrew' if ansible_machine == 'arm64' else '/usr/local' }}"
+
+    - name: Install minimum required Homebrew formulas
+      homebrew:
+        name: "{{ item }}"
+        state: latest
+        upgrade_all: yes
+        update_homebrew: yes
+      with_items: "{{ minimum_packages }}"
+      become_user: "{{ admin_user | default('automation_user') }}"
+
+    - name: Display installed packages
+      debug:
+        msg: "Installed packages: {{ minimum_packages | join(', ') }}"
+

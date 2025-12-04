@@ -1,0 +1,42 @@
+---
+# disable-bluetooth.yml
+# Disables Bluetooth on Mac machines (useful for build farm security)
+
+- name: Disable Bluetooth
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: yes
+
+  tasks:
+    - name: Install blueutil via Homebrew
+      homebrew:
+        name: blueutil
+        state: latest
+      become_user: "{{ admin_user | default('automation_user') }}"
+
+    - name: Disable Bluetooth (Apple Silicon)
+      command: /opt/homebrew/bin/blueutil --power 0
+      register: result
+      changed_when: "'already off' not in result.stdout"
+      when: ansible_machine == 'arm64'
+
+    - name: Disable Bluetooth (Intel)
+      command: /usr/local/bin/blueutil --power 0
+      register: result
+      changed_when: "'already off' not in result.stdout"
+      when: ansible_machine == 'x86_64'
+
+    - name: Verify Bluetooth status
+      shell: |
+        {% if ansible_machine == 'arm64' %}
+        /opt/homebrew/bin/blueutil --power
+        {% else %}
+        /usr/local/bin/blueutil --power
+        {% endif %}
+      register: bt_status
+      changed_when: false
+
+    - name: Display Bluetooth status
+      debug:
+        msg: "Bluetooth power is: {{ bt_status.stdout }}"
+

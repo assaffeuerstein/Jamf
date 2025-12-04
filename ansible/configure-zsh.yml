@@ -1,0 +1,86 @@
+---
+# configure-zsh.yml
+# Configures ZSH as the default shell and migrates bash profiles
+
+- name: Configure ZSH Shell
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: no
+  become: yes
+  become_user: root
+
+  vars:
+    # User to configure ZSH for
+    target_user: "{{ zsh_user | default(admin_user) | default('automation_user') }}"
+
+  tasks:
+    - name: Get current shell for user
+      shell: "dscl . -read /Users/{{ target_user }} UserShell | awk '{print $2}'"
+      register: current_shell
+      changed_when: false
+
+    - name: Display current shell
+      debug:
+        msg: "Current shell for {{ target_user }}: {{ current_shell.stdout }}"
+
+    - name: Change default shell to ZSH
+      shell: chsh -s /bin/zsh {{ target_user }}
+      when: current_shell.stdout != '/bin/zsh'
+
+    - name: Check if .bash_profile exists
+      stat:
+        path: "/Users/{{ target_user }}/.bash_profile"
+      register: bashprofile
+
+    - name: Backup and rename .bash_profile to .zprofile
+      block:
+        - name: Check if .zprofile already exists
+          stat:
+            path: "/Users/{{ target_user }}/.zprofile"
+          register: zprofile
+
+        - name: Backup existing .zprofile
+          copy:
+            src: "/Users/{{ target_user }}/.zprofile"
+            dest: "/Users/{{ target_user }}/.zprofile.backup"
+            remote_src: yes
+          when: zprofile.stat.exists
+
+        - name: Rename .bash_profile to .zprofile
+          command: mv /Users/{{ target_user }}/.bash_profile /Users/{{ target_user }}/.zprofile
+          become_user: "{{ target_user }}"
+      when: bashprofile.stat.exists
+
+    - name: Check if .bashrc exists
+      stat:
+        path: "/Users/{{ target_user }}/.bashrc"
+      register: bashrc
+
+    - name: Backup and rename .bashrc to .zshrc
+      block:
+        - name: Check if .zshrc already exists
+          stat:
+            path: "/Users/{{ target_user }}/.zshrc"
+          register: zshrc
+
+        - name: Backup existing .zshrc
+          copy:
+            src: "/Users/{{ target_user }}/.zshrc"
+            dest: "/Users/{{ target_user }}/.zshrc.backup"
+            remote_src: yes
+          when: zshrc.stat.exists
+
+        - name: Rename .bashrc to .zshrc
+          command: mv /Users/{{ target_user }}/.bashrc /Users/{{ target_user }}/.zshrc
+          become_user: "{{ target_user }}"
+      when: bashrc.stat.exists
+
+    - name: Verify shell change
+      shell: "dscl . -read /Users/{{ target_user }} UserShell | awk '{print $2}'"
+      register: new_shell
+      changed_when: false
+
+    - name: Display result
+      debug:
+        msg: "Shell for {{ target_user }} is now: {{ new_shell.stdout }}"
+

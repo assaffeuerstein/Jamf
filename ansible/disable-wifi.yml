@@ -1,0 +1,41 @@
+---
+# disable-wifi.yml
+# Disables Wi-Fi on Mac machines (useful for build farm security/consistency)
+
+- name: Disable Wi-Fi
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  tasks:
+    - name: Identify Wi-Fi interface
+      command: networksetup -listallhardwareports
+      register: hw_ports
+      changed_when: false
+
+    - name: Extract Wi-Fi interface name
+      set_fact:
+        wifi_interface: "{{ hw_ports.stdout | regex_search('Hardware Port: Wi-Fi\\nDevice: (\\w+)', '\\1') | first }}"
+      when: "'Wi-Fi' in hw_ports.stdout"
+
+    - name: Display Wi-Fi interface
+      debug:
+        msg: "Wi-Fi interface detected: {{ wifi_interface | default('None') }}"
+
+    - name: Disable Wi-Fi
+      command: "networksetup -setairportpower {{ wifi_interface }} off"
+      when: wifi_interface is defined and wifi_interface | length > 0
+
+    - name: Verify Wi-Fi is disabled
+      command: "networksetup -getairportpower {{ wifi_interface }}"
+      register: wifi_status
+      changed_when: false
+      when: wifi_interface is defined and wifi_interface | length > 0
+
+    - name: Display Wi-Fi status
+      debug:
+        msg: "{{ wifi_status.stdout | default('Wi-Fi interface not found') }}"
+      when: wifi_interface is defined
+

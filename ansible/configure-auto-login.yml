@@ -1,0 +1,72 @@
+---
+# configure-auto-login.yml
+# Configures automatic login for a user
+# IMPORTANT: This reduces security - use only in controlled environments (e.g., build farms)
+
+- name: Configure Auto Login
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  vars:
+    # User to configure auto-login for
+    autologin_user: "{{ login_user | default('') }}"
+    # Whether to reboot after configuration
+    reboot_after_config: "{{ should_reboot | default(false) }}"
+    # Password should be provided via Ansible Vault
+    # autologin_password: "{{ vault_autologin_password }}"
+
+  tasks:
+    - name: Validate autologin_user is specified
+      fail:
+        msg: "Variable 'autologin_user' or 'login_user' must be specified"
+      when: autologin_user | length == 0
+
+    - name: Check if user exists
+      command: "dscl . -read /Users/{{ autologin_user }}"
+      register: user_exists
+      ignore_errors: yes
+      changed_when: false
+
+    - name: Fail if user does not exist
+      fail:
+        msg: "User '{{ autologin_user }}' does not exist on this system"
+      when: user_exists.rc != 0
+
+    - name: Set auto login user
+      shell: defaults write /Library/Preferences/com.apple.loginwindow.plist autoLoginUser -string '{{ autologin_user }}'
+
+    - name: Display auto-login configuration status
+      debug:
+        msg: |
+          Auto-login has been configured for user: {{ autologin_user }}
+
+          NOTE: For complete auto-login setup, you also need to:
+          1. Set the user's password in com.apple.loginwindow.plist
+          2. Or use the kcpassword mechanism
+
+          For security reasons, this playbook does not store passwords in plaintext.
+          Use Ansible Vault to securely provide the password.
+
+    # Uncomment and configure with Ansible Vault for full auto-login setup
+    # - name: Set auto login password (requires vault)
+    #   shell: defaults write /Library/Preferences/com.apple.loginwindow.plist autoLoginPassword -string '{{ autologin_password }}'
+    #   no_log: true
+    #   when: autologin_password is defined
+
+    - name: Get current auto-login settings
+      shell: defaults read /Library/Preferences/com.apple.loginwindow.plist autoLoginUser 2>/dev/null || echo "Not configured"
+      register: current_autologin
+      changed_when: false
+
+    - name: Display current auto-login user
+      debug:
+        msg: "Auto-login is configured for: {{ current_autologin.stdout }}"
+
+    - name: Reboot Mac to apply changes
+      command: /sbin/shutdown -r now
+      when: reboot_after_config
+      ignore_errors: yes
+

@@ -1,0 +1,14 @@
+---
+# install-telegraf.yml
+# Installs Telegraf monitoring agent using the telegraf role
+
+- name: Install Telegraf
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: yes
+
+  roles:
+    - telegraf
+

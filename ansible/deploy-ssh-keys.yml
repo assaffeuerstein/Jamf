@@ -1,0 +1,13 @@
+---
+# deploy-ssh-keys.yml
+# Deploys SSH keys using the ssh_keys role
+
+- name: Deploy SSH Keys
+  hosts: "{{ target_hosts | default('all') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+
+  roles:
+    - role: ssh_keys
+

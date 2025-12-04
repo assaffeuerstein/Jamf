@@ -1,0 +1,45 @@
+---
+# software-update.yml
+# Manages macOS software updates
+
+- name: Software Update
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  gather_facts: no
+  become_user: root
+  become: yes
+
+  vars:
+    # Specific update to install (leave empty to list available updates)
+    # Example: "macOS Sonoma 14.7.2-23H311"
+    specific_update: "{{ update_name | default('') }}"
+    # Whether to restart after update
+    restart_after_update: "{{ should_restart | default(true) }}"
+
+  tasks:
+    - name: Check for available software updates
+      shell: softwareupdate -l
+      register: available_updates
+      changed_when: false
+
+    - name: Display available updates
+      debug:
+        msg: "{{ available_updates.stdout_lines }}"
+
+    - name: Install specific update
+      shell: "softwareupdate -i '{{ specific_update }}' {{ '-R' if restart_after_update else '' }}"
+      when: specific_update | length > 0
+      ignore_errors: yes
+      register: update_result
+
+    - name: Display update result
+      debug:
+        msg: "{{ update_result.stdout | default('No update performed') }}"
+      when: specific_update | length > 0
+
+    # Optional: Kill blocking processes before restart
+    # - name: Make sure nothing blocks restart
+    #   shell: ps -ef | egrep -i "iterm|unity" | grep -v grep | awk '{print $2}' | xargs kill -9
+    #   ignore_errors: yes
+    #   when: restart_after_update and specific_update | length > 0
+

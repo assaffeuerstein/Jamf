@@ -1,0 +1,39 @@
+---
+# fix-timezone.yml
+# Configures timezone on Mac machines
+
+- name: Fix Timezone
+  hosts: "{{ target_hosts | default('all') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  vars:
+    # Target timezone (customize for your location)
+    # Common values: "America/New_York", "America/Los_Angeles", "Europe/London", "UTC", "GMT"
+    target_timezone: "{{ timezone | default('UTC') }}"
+
+  tasks:
+    - name: Get current timezone
+      shell: '/usr/sbin/systemsetup -gettimezone'
+      register: current_tz
+      changed_when: false
+
+    - name: Display current timezone
+      debug:
+        msg: "Current timezone: {{ current_tz.stdout }}"
+
+    - name: Set timezone
+      shell: '/usr/sbin/systemsetup -settimezone "{{ target_timezone }}"'
+      when: target_timezone not in current_tz.stdout
+
+    - name: Verify timezone change
+      shell: '/usr/sbin/systemsetup -gettimezone'
+      register: new_tz
+      changed_when: false
+
+    - name: Display new timezone
+      debug:
+        msg: "Timezone is now: {{ new_tz.stdout }}"
+

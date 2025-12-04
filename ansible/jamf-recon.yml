@@ -1,0 +1,59 @@
+---
+# jamf-recon.yml
+# Runs Jamf management commands to update inventory and apply policies
+
+- name: Jamf Manage & Recon
+  hosts: "{{ target_hosts | default('build_macs') }}"
+  remote_user: "{{ admin_user | default('automation_user') }}"
+  become_user: root
+  become: yes
+  gather_facts: no
+
+  vars:
+    # Whether to run jamf policy after recon
+    run_policy: "{{ jamf_run_policy | default(false) }}"
+
+  tasks:
+    - name: Check if Jamf binary exists
+      stat:
+        path: /usr/local/bin/jamf
+      register: jamf_binary
+
+    - name: Fail if Jamf is not installed
+      fail:
+        msg: "Jamf binary not found at /usr/local/bin/jamf"
+      when: not jamf_binary.stat.exists
+
+    - name: Run Jamf Manage
+      command: /usr/local/bin/jamf manage
+      register: manage_result
+
+    - name: Display Jamf Manage result
+      debug:
+        msg: "{{ manage_result.stdout_lines }}"
+
+    - name: Run Jamf Recon (inventory update)
+      command: /usr/local/bin/jamf recon
+      register: recon_result
+
+    - name: Display Jamf Recon result
+      debug:
+        msg: "{{ recon_result.stdout_lines }}"
+
+    - name: Kill any running jamf policy processes
+      shell: |
+        pkill -f "jamf policy" || true
+        sleep 2
+      ignore_errors: yes
+      when: run_policy
+
+    - name: Run Jamf Policy
+      command: /usr/local/bin/jamf policy
+      register: policy_result
+      when: run_policy
+
+    - name: Display Jamf Policy result
+      debug:
+        msg: "{{ policy_result.stdout_lines | default(['Policy not run']) }}"
+      when: run_policy
+
